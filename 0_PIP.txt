@@ -1,0 +1,4 @@
+pip install google-generativeai # 구글의 AI 모델(Gemini)을 파이썬에서 다루기 위한 공식 도구입니다.
+pip install streamlit # 웹 화면(UI)을 쉽고 빠르게 만들어주는 라이브러리입니다.
+pip install pdfplumber # PDF 파일 안의 글자를 꼼꼼하게 뽑아내는 역할을 합니다.
+pip install pandas # 데이터를 엑셀 표처럼 다루고 정리하기 위한 라이브러리입니다.
