@@ -80,11 +80,13 @@ def build_translation_prompt(
 {full_text}
 
 [최종 출력]
-다음 구조의 순수 JSON 객체 하나만 반환해 (마크다운 코드펜스 없이):
+다음 구조의 JSON 객체로 반환해:
 {{
     "translated_content": "위 출력 형식을 따르는 전체 마크다운 문자열",
     "new_summary": "이번 챕터 내용을 요약한 한두 문장 (다음 챕터 번역 시 컨텍스트로 재사용됨)",
-    "updated_glossary": {{ "Term (Eng)": "번역어", "...": "..." }}
+    "updated_glossary": [
+        {{"term": "Original Term", "translation": "번역어"}}
+    ]
 }}"""
 
 

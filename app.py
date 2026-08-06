@@ -14,7 +14,26 @@ st.sidebar.title("⚙️ 설정")
 api_key = st.sidebar.text_input("Google API Key를 입력하세요", type="password")
 
 if api_key:
-    ai_client.configure(api_key)
+    if st.session_state.get("_configured_key") != api_key:
+        ai_client.configure(api_key)
+        st.session_state._configured_key = api_key
+        st.session_state.available_models = ai_client.list_available_models()
+        st.session_state.selected_model = ai_client.pick_default_model(
+            st.session_state.available_models
+        )
+
+    if st.session_state.get("available_models"):
+        models = st.session_state.available_models
+        current = st.session_state.get("selected_model")
+        index = models.index(current) if current in models else 0
+        st.session_state.selected_model = st.sidebar.selectbox(
+            "사용할 모델", models, index=index
+        )
+    else:
+        st.sidebar.error(
+            "이 키로 쓸 수 있는 모델 목록을 가져오지 못했어요. 키가 올바른지, "
+            "또는 프로젝트에 Generative Language API가 활성화되어 있는지 확인해주세요."
+        )
 
 # --------------------------------------------------------------------------
 # 1. 메인 UI
@@ -44,7 +63,9 @@ if uploaded_file is not None:
 
         pages_summary = pdf_utils.scan_pdf(
             uploaded_file,
-            count_tokens_fn=lambda t: ai_client.count_tokens(t, api_key),
+            count_tokens_fn=lambda t: ai_client.count_tokens(
+                t, api_key, st.session_state.get("selected_model")
+            ),
             progress_callback=_report_progress,
         )
         status_text.empty()
@@ -96,14 +117,16 @@ if uploaded_file is not None:
         st.session_state.subject_title = None
 
     if st.button("🤖 이 데이터로 과목/목차 구조화 요청하기"):
-        if not api_key:
-            st.error("API Key를 먼저 입력해주세요.")
+        if not api_key or not st.session_state.get("selected_model"):
+            st.error("API Key와 사용 가능한 모델이 먼저 필요해요 (왼쪽 사이드바 확인).")
         else:
             with st.expander("🔍 [디버깅] AI에게 전송되는 프롬프트 보기", expanded=False):
                 st.code(prompts.build_structure_prompt(pages_summary), language="json")
 
             with st.spinner("AI가 강의자료의 구조를 분석 중입니다..."):
-                result = ai_client.get_chapter_structure(pages_summary)
+                result = ai_client.get_chapter_structure(
+                    pages_summary, st.session_state.selected_model
+                )
 
             if result and "chapters" in result:
                 st.session_state.chapter_structure = result["chapters"]
@@ -156,8 +179,8 @@ if uploaded_file is not None:
         chapters = st.session_state.chapter_structure
 
         if st.button("🚀 전체 챕터 번역 시작"):
-            if not api_key:
-                st.error("API Key가 필요합니다.")
+            if not api_key or not st.session_state.get("selected_model"):
+                st.error("API Key와 사용 가능한 모델이 먼저 필요해요 (왼쪽 사이드바 확인).")
             else:
                 # 재실행 시 이전 결과를 덮어쓰지 않도록 초기화
                 st.session_state.final_results = []
@@ -176,7 +199,7 @@ if uploaded_file is not None:
                         uploaded_file,
                         int(chapter["start_page"]),
                         int(chapter["end_page"]),
-                        ocr_fn=ai_client.ocr_image,
+                        ocr_fn=lambda img: ai_client.ocr_image(img, st.session_state.selected_model),
                     )
 
                     time.sleep(2)  # 429(요청 과다) 에러 방지용 대기
@@ -187,6 +210,7 @@ if uploaded_file is not None:
                         chapter_text,
                         st.session_state.context_summary,
                         st.session_state.context_glossary,
+                        st.session_state.selected_model,
                     )
 
                     if ai_result and "translated_content" in ai_result:
